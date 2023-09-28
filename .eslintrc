@@ -1,0 +1,18 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "@typescript-eslint",
+    "unused-imports"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules":{
+    "@typescript-eslint/no-non-null-assertion" : "off",
+    "indent": ["error", 2],
+    "unused-imports/no-unused-imports-ts": "error",
+  }
+}
