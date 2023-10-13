@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import HelloScene from "./scenes/HelloScene";
+import MainScene from "./scenes/MainScene";
 
 const isPortrait = window.innerHeight > window.innerWidth;
 const screenWidth = isPortrait ? 480 : 700;
@@ -21,7 +21,7 @@ const config: Phaser.Types.Core.GameConfig = {
     }
   },
   scene: [
-    HelloScene,
+    MainScene,
   ]
 };
 
