@@ -1,6 +1,8 @@
-# Obstacle Dodger
+# Flappy Clone
 
-A simple game about a motorcycle that must dodge obstacles, implemented with Typescript, Phaser and Vite.
+A clone of the classic _Flappy Bird_ game, implemented with TypeScript and Phaser.
+
+> This project is a fork of the [Don't Touch My Birdie](https://github.com/marksteve/dtmb) project from Mark Steve Samson. 
 
 ## Getting Started
 
@@ -65,4 +67,4 @@ create new folder inside this folder.
 
 ## License
 
-[MIT License](LICENSE.md)
+This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0 International License](http://creativecommons.org/licenses/by-nc/4.0/).
