@@ -1,11 +1,16 @@
+// FIXME: These constants should probably need to be adjusted to fit the new canvas size.
 const SPEED = 0.12;
 const GRAVITY = 18;
 const FLAP = 210;
 
+enum Status {
+  READY,
+  STARTED,
+  OVER
+}
+
 export default class MainScene extends Phaser.Scene {
-  // FIXME: Instead of using two flags, should use a 'gameStatus' enum. 
-  private gameStarted = false;
-  private gameOver = false;
+  private gameStatus = Status.READY;
   // private highscore = 0;
   private score = 0;
   
@@ -108,7 +113,7 @@ export default class MainScene extends Phaser.Scene {
 
     // Add controls.
     this.input.keyboard?.on('keydown', this.flap.bind(this));
-    // TODO: Add touch and mouse controls.
+    this.input.on('pointerdown', this.flap.bind(this));
 
     // Start.
     this.reset();
@@ -118,7 +123,7 @@ export default class MainScene extends Phaser.Scene {
     // TODO: Finish implementation.
 
     // Move background.
-    if(!this.gameOver) {
+    if(this.gameStatus !== Status.OVER) {
       if(this.tileFloor != null) this.tileFloor.tilePositionX += delta * SPEED;
       if(this.tileSky != null) this.tileSky.tilePositionX += delta * SPEED / 16;
     }
@@ -126,8 +131,7 @@ export default class MainScene extends Phaser.Scene {
 
   reset() {
     // Update flags and score.
-    this.gameStarted = false;
-    this.gameOver = false;
+    this.gameStatus = Status.READY;
     this.score = 0;
 
     // Update texts.
@@ -149,7 +153,7 @@ export default class MainScene extends Phaser.Scene {
 
   start() {
     // Update flag.
-    this.gameStarted = true;
+    this.gameStatus = Status.STARTED;
 
     // Update texts.
     this.scoreText?.setText(this.score + '');
@@ -169,11 +173,11 @@ export default class MainScene extends Phaser.Scene {
   // spawnTowers() {}
 
   flap() {
-    if (!this.gameStarted) {
+    if (this.gameStatus !== Status.STARTED) {
       this.start();
     }
 
-    if (!this.gameOver) {
+    if (this.gameStatus !== Status.OVER) {
       this.clone?.setVelocityY(-FLAP);
       this.flapSound?.play();
     }
