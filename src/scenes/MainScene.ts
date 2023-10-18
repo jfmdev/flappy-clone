@@ -1,7 +1,20 @@
-// FIXME: These constants should probably need to be adjusted to fit the new canvas size.
-const SPEED = 0.12;
-const GRAVITY = 18;
-const FLAP = 210;
+// Constants related to the game physics (speeds are pixels per second).
+const FLAP_IMPULSE = 420;
+const GRAVITY = 900;
+const BACKGROUND_SPEED = 180;
+
+// Constants related to images sizes.
+const CLONE_SIZE = 48;
+const FENCE_HEIGHT = 32;
+
+// Constants related to the towers.
+const GAP_MARGIN = CLONE_SIZE;
+const GAP_MIN_HEIGHT = CLONE_SIZE * 3;
+const GAP_MAX_HEIGHT = CLONE_SIZE * 4.5;
+const SPAWN_RATE = 900;
+
+// Other constants.
+const SCORE_THRESHOLD = 50;
 
 enum Status {
   READY,
@@ -16,10 +29,11 @@ export default class MainScene extends Phaser.Scene {
   
   private clone: Phaser.Physics.Arcade.Sprite | null = null;
   private cloneBody: Phaser.Physics.Arcade.Body | null = null;
+  private gaps: Phaser.Physics.Arcade.Group | null = null;
+  private spawnTimer: Phaser.Time.TimerEvent | null = null;
   private tileFloor: Phaser.GameObjects.TileSprite | null = null;
   private tileSky: Phaser.GameObjects.TileSprite | null = null;
-  private towersSprites: Phaser.GameObjects.Group | null = null;
-  private towersBounds: Phaser.GameObjects.Group | null = null;
+  private towers: Phaser.Physics.Arcade.Group | null = null;
   
   private highscoreText: Phaser.GameObjects.Text | null = null;
   private instructionsText: Phaser.GameObjects.Text | null = null;
@@ -48,7 +62,7 @@ export default class MainScene extends Phaser.Scene {
     this.load.image('tower', 'assets/images/tower.png');
 
     // Load spritesheets.
-    this.load.spritesheet('clone', 'assets/spritesheet/clone.png', { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('clone', 'assets/spritesheet/clone.png', { frameWidth: CLONE_SIZE, frameHeight: CLONE_SIZE });
 
     // Load audio.
     this.load.audio('flap', 'assets/sound/flap.wav');
@@ -58,8 +72,16 @@ export default class MainScene extends Phaser.Scene {
 
   create() {
     // Add sky and floor.
-    this.tileFloor = this.add.tileSprite(0, this.game.canvas.height - 32, this.game.canvas.width, 32, 'fence').setOrigin(0, 0);
     this.tileSky = this.add.tileSprite(0, 0, this.game.canvas.width, this.game.canvas.height, 'stars').setOrigin(0, 0);
+    this.tileFloor = this.add.tileSprite(
+      0, this.game.canvas.height - FENCE_HEIGHT, 
+      this.game.canvas.width, FENCE_HEIGHT, 
+      'fence').setOrigin(0, 0);
+    this.tileFloor.setDepth(1);
+
+    // Add groups for towers and colliders.
+    this.towers = this.physics.add.group();
+    this.gaps = this.physics.add.group();
 
     // Add clone trooper.
     this.clone = this.physics.add.sprite(this.game.canvas.width / 4, this.game.canvas.height / 2, 'clone');
@@ -68,10 +90,6 @@ export default class MainScene extends Phaser.Scene {
 
     this.cloneBody = this.clone.body as Phaser.Physics.Arcade.Body;
     this.cloneBody.setGravityY(GRAVITY);
-
-    // Add groups for towers sprites and colliders.
-    this.towersSprites = this.add.group();
-    this.towersBounds = this.add.group();
 
     // Add texts.
     this.scoreText = this.add.text(
@@ -115,7 +133,7 @@ export default class MainScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown', this.flap.bind(this));
     this.input.on('pointerdown', this.flap.bind(this));
 
-    // Start.
+    // Reset statuses.
     this.reset();
   }
 
@@ -124,10 +142,12 @@ export default class MainScene extends Phaser.Scene {
 
     // Move background.
     if(this.gameStatus !== Status.OVER) {
-      if(this.tileFloor != null) this.tileFloor.tilePositionX += delta * SPEED;
-      if(this.tileSky != null) this.tileSky.tilePositionX += delta * SPEED / 16;
+      if(this.tileFloor != null) this.tileFloor.tilePositionX += delta * BACKGROUND_SPEED / 1000;
+      if(this.tileSky != null) this.tileSky.tilePositionX += delta * BACKGROUND_SPEED / 16000;
     }
   }
+
+  // --- Custom methods --- //
 
   reset() {
     // Update flags and score.
@@ -146,9 +166,10 @@ export default class MainScene extends Phaser.Scene {
     this.clone?.anims.play('fly');
     this.cloneBody?.setAllowGravity(false);
     
-    // Update towers.
-    this.towersSprites?.clear();
-    this.towersBounds?.clear();
+    // Clear towers, gaps and timer.
+    this.towers?.clear();
+    this.gaps?.clear();
+    this.spawnTimer?.remove();
   }
 
   start() {
@@ -162,15 +183,14 @@ export default class MainScene extends Phaser.Scene {
     // Update clone.
     this.cloneBody?.setAllowGravity(true);
 
-    // Update towers.
-    // TODO: Add timer to spawn towers.
+    // Initialize timer to add towers.
+    this.spawnTimer = this.time.addEvent({
+      delay: SPAWN_RATE,
+      callback: this.spawnTowers,
+      callbackScope: this,
+      loop: true
+    });
   }
-
-  // openingSize() {}
-  // addScore() {}
-  // setGameOver() {}
-  // spawnTower() {}
-  // spawnTowers() {}
 
   flap() {
     if (this.gameStatus !== Status.STARTED) {
@@ -178,8 +198,48 @@ export default class MainScene extends Phaser.Scene {
     }
 
     if (this.gameStatus !== Status.OVER) {
-      this.clone?.setVelocityY(-FLAP);
+      this.clone?.setVelocityY(-FLAP_IMPULSE);
       this.flapSound?.play();
     }
   }
+  
+  gapHeight() {
+    // The more score, the smaller the space between the towers (until reaching the threshold, when the space becames constant).
+    const scorePenalty = this.score >= SCORE_THRESHOLD ? 1 : this.score / SCORE_THRESHOLD;
+    return GAP_MAX_HEIGHT - (GAP_MAX_HEIGHT - GAP_MIN_HEIGHT) * scorePenalty;
+  }
+
+  spawnTowers() {
+    // Generate a random position for the gap between the towers.
+    const minGapPosition = this.gapHeight()/2 + GAP_MARGIN;
+    const maxGapPosition = this.game.canvas.height - FENCE_HEIGHT - this.gapHeight()/2 - GAP_MARGIN;
+    const gapPosition = maxGapPosition - (maxGapPosition - minGapPosition) * Math.random();
+
+    // Create towers.
+    this.spawnTower(gapPosition);
+    this.spawnTower(gapPosition, true);
+
+    // TODO: Create gap.
+  }
+
+  spawnTower(gapCenter: number, flipped = false) {
+    const flipSign = flipped ? -1 : 1;
+
+    const tower = this.towers?.create(
+      this.game.canvas.width,
+      gapCenter + (flipSign * this.gapHeight() / 2),
+      'tower'
+    ) as Phaser.GameObjects.Sprite;
+    tower.setScale(1.5, flipSign * 1.5);
+    tower.setOrigin(0, 0);
+
+    const towerBody = tower.body as Phaser.Physics.Arcade.Body;
+    towerBody.setAllowGravity(false)
+    towerBody.setVelocityX(-BACKGROUND_SPEED);
+
+    return tower;
+  }
+
+  // addScore() {}
+  // setGameOver() {}
 }
