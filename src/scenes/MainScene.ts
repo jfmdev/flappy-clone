@@ -160,10 +160,9 @@ export default class MainScene extends Phaser.Scene {
       this.clone?.setAngle(angle < -30 ? -30 : angle > 90 || angle < -90 ? 90 : angle);
 
       // Check for collisions.
-      // TODO: Collisions for towers aren't working correctly
-      // if(this.clone && this.towers) {
-      //   this.physics.overlap(this.clone, this.towers, this.endGame.bind(this));
-      // }
+      if(this.clone && this.towers) {
+        this.physics.overlap(this.clone, this.towers, this.endGame.bind(this));
+      }
       if(this.clone && this.milestones) {
         this.physics.overlap(this.clone, this.milestones, this.increaseScore.bind(this));
       }
@@ -248,6 +247,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   flap() {
+    // TODO: Should wait some time before allowing the user to reset (otherwise it's too easy to restart the game by mistake).
     if (this.gameStatus === Status.OVER) {
       this.reset();
     } else if (this.gameStatus === Status.READY) {
@@ -273,11 +273,11 @@ export default class MainScene extends Phaser.Scene {
     const gapPosition = maxGapPosition - (maxGapPosition - minGapPosition) * Math.random();
 
     // Create towers.
-    const topTower = this.spawnTower(gapPosition);
+    const bottomTower = this.spawnTower(gapPosition);
     this.spawnTower(gapPosition, true);
 
     // Create milestone (we use an invisible rectangle).
-    const milestone = this.add.rectangle(topTower.x + topTower.width, this.game.canvas.height/2, 2, this.game.canvas.height);
+    const milestone = this.add.rectangle(bottomTower.x + bottomTower.width, this.game.canvas.height/2, 2, this.game.canvas.height);
     this.milestones?.add(milestone);
     const milestoneBody = milestone.body as Phaser.Physics.Arcade.Body;
     milestoneBody.setAllowGravity(false)
@@ -285,15 +285,14 @@ export default class MainScene extends Phaser.Scene {
   }
 
   spawnTower(gapCenter: number, flipped = false) {
-    const flipSign = flipped ? -1 : 1;
-
     const tower = this.towers?.create(
       this.game.canvas.width,
-      gapCenter + (flipSign * this.gapHeight() / 2),
+      gapCenter + (flipped ? -1 : 1) * (this.gapHeight() / 2),
       'tower'
     ) as Phaser.GameObjects.Sprite;
-    tower.setScale(1.5, flipSign * 1.5);
-    tower.setOrigin(0, 0);
+    tower.setScale(1.5, 1.5);
+    tower.setFlipY(flipped);
+    tower.setOrigin(0, flipped ? 1 : 0);
     tower.setDepth(Depths.TOWERS);
 
     const towerBody = tower.body as Phaser.Physics.Arcade.Body;
