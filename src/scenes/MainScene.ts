@@ -11,10 +11,13 @@ const FENCE_HEIGHT = 32;
 const GAP_MARGIN = CLONE_SIZE;
 const GAP_MIN_HEIGHT = CLONE_SIZE * 3;
 const GAP_MAX_HEIGHT = CLONE_SIZE * 4.5;
-const SPAWN_RATE = 900;
+const SPAWN_RATE = 950;
 
 // Other constants.
 const SCORE_THRESHOLD = 50;
+const TITLE = "Flappy\nClone";
+const INSTRUCTIONS_START = "Touch to\nflap wings";
+const INSTRUCTIONS_RETRY = "Touch anywhere\nto try again";
 
 enum Status {
   READY,
@@ -22,14 +25,22 @@ enum Status {
   OVER
 }
 
+enum Depths {
+  BACKGROUND = 0,
+  TOWERS = 1,
+  TEXTS = 2,
+  CLONE = 3,
+  FLOOR = 4
+}
+
 export default class MainScene extends Phaser.Scene {
   private gameStatus = Status.READY;
-  // private highscore = 0;
+  private highscore = 0;
   private score = 0;
   
   private clone: Phaser.Physics.Arcade.Sprite | null = null;
   private cloneBody: Phaser.Physics.Arcade.Body | null = null;
-  private gaps: Phaser.Physics.Arcade.Group | null = null;
+  private milestones: Phaser.Physics.Arcade.Group | null = null;
   private spawnTimer: Phaser.Time.TimerEvent | null = null;
   private tileFloor: Phaser.GameObjects.TileSprite | null = null;
   private tileSky: Phaser.GameObjects.TileSprite | null = null;
@@ -40,19 +51,19 @@ export default class MainScene extends Phaser.Scene {
   private scoreText: Phaser.GameObjects.Text | null = null;
 
   private flapSound: Phaser.Sound.BaseSound | null = null;
-  // private hurtSound: Phaser.Sound.BaseSound | null = null;
-  // private scoreSound: Phaser.Sound.BaseSound | null = null;
+  private hurtSound: Phaser.Sound.BaseSound | null = null;
+  private scoreSound: Phaser.Sound.BaseSound | null = null;
 
   constructor() {
     super('Initializing...');
 
-    // // Get highscore from local storage.
-    // this.highscore = 0;
-    // try {
-    //   this.highscore = parseInt(localStorage.getItem('highscore') || '0', 10);
-    // }catch(err) {
-    //   // Do nothing.
-    // }
+    // Get highscore from local storage.
+    this.highscore = 0;
+    try {
+      this.highscore = parseInt(localStorage.getItem('highscore') || '0', 10);
+    }catch(err) {
+      // Do nothing.
+    }
   }
 
   preload() {
@@ -77,41 +88,45 @@ export default class MainScene extends Phaser.Scene {
       0, this.game.canvas.height - FENCE_HEIGHT, 
       this.game.canvas.width, FENCE_HEIGHT, 
       'fence').setOrigin(0, 0);
-    this.tileFloor.setDepth(1);
+    this.tileFloor.setDepth(Depths.FLOOR);
 
-    // Add groups for towers and colliders.
+    // Add groups for towers and milestones.
     this.towers = this.physics.add.group();
-    this.gaps = this.physics.add.group();
+    this.milestones = this.physics.add.group();
 
-    // Add clone trooper.
+    // Add player.
     this.clone = this.physics.add.sprite(this.game.canvas.width / 4, this.game.canvas.height / 2, 'clone');
     this.clone.setCollideWorldBounds(true);
     this.clone.anims.create({ key: 'fly', frames: this.anims.generateFrameNumbers('clone', { start: 0, end: 3 }), frameRate: 10, repeat: -1 });
+    this.clone.setDepth(Depths.CLONE);
 
     this.cloneBody = this.clone.body as Phaser.Physics.Arcade.Body;
+    this.cloneBody.setAllowGravity(false);
     this.cloneBody.setGravityY(GRAVITY);
 
     // Add texts.
     this.scoreText = this.add.text(
       this.game.canvas.width / 2,
       this.game.canvas.height / 5,
-      ""
+      TITLE
     );
     this.scoreText.setFontSize(32);
     this.scoreText.setColor('#fff');
     this.scoreText.setAlign('center');
     this.scoreText.setOrigin(0.5, 0.5);
+    this.scoreText.setDepth(Depths.TEXTS);
   
     this.instructionsText = this.add.text(
       this.game.canvas.width / 2,
       this.game.canvas.height * 3/4,
-      "Touch to\nflap wings"
+      INSTRUCTIONS_START
     );
     this.instructionsText.setFontSize(20);
     this.instructionsText.setFontFamily('Verdana');
     this.instructionsText.setColor('#fff');
     this.instructionsText.setAlign('center');
     this.instructionsText.setOrigin(0.5, 0.5);
+    this.instructionsText.setDepth(Depths.TEXTS);
 
     this.highscoreText = this.add.text(
       this.game.canvas.width / 2,
@@ -123,11 +138,12 @@ export default class MainScene extends Phaser.Scene {
     this.highscoreText.setColor('#fff');
     this.highscoreText.setAlign('center');
     this.highscoreText.setOrigin(0.5, 0.5);
+    this.highscoreText.setDepth(Depths.TEXTS);
 
     // Add sounds.
     this.flapSound = this.sound.add('flap');
-    // this.hurtSound = this.sound.add('hurt');
-    // this.scoreSound = this.sound.add('score');
+    this.hurtSound = this.sound.add('hurt');
+    this.scoreSound = this.sound.add('score');
 
     // Add controls.
     this.input.keyboard?.on('keydown', this.flap.bind(this));
@@ -138,7 +154,45 @@ export default class MainScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    // TODO: Finish implementation.
+    if(this.gameStatus === Status.STARTED) {
+      // Update player angle according to its vertical speed.
+      const angle = 90 * (this.cloneBody?.velocity.y || 0)/FLAP_IMPULSE - 90;
+      this.clone?.setAngle(angle < -30 ? -30 : angle > 90 || angle < -90 ? 90 : angle);
+
+      // Check for collisions.
+      // TODO: Collisions for towers aren't working correctly
+      // if(this.clone && this.towers) {
+      //   this.physics.overlap(this.clone, this.towers, this.endGame.bind(this));
+      // }
+      if(this.clone && this.milestones) {
+        this.physics.overlap(this.clone, this.milestones, this.increaseScore.bind(this));
+      }
+      if(this.cloneBody && this.cloneBody.position.y > this.game.canvas.height - FENCE_HEIGHT - CLONE_SIZE/2) {
+        this.endGame();
+      }
+
+      // Destroy towers when they are out of the screen (no need to do the same for milestones, that's done when increasing the score).
+      this.towers?.getChildren().forEach((tower: Phaser.GameObjects.GameObject) => {
+        const towerBody = tower.body as Phaser.Physics.Arcade.Body;
+        if (towerBody.x + towerBody.width < 0) {
+          this.towers?.remove(tower, true, true);
+        }
+      });
+    }
+    
+    if(this.gameStatus === Status.OVER) {
+      // Rotate player, stop animation and increase (gradually) its scale.
+      this.clone?.setAngle(90);
+      this.clone?.anims.stop();
+      if(this.clone && this.clone.scale < 2) {
+        const newScale = this.clone.scale * (1 + delta/650);
+        this.clone.setScale(newScale > 2 ? 2 : newScale);
+      }
+    }
+
+    if(this.gameStatus === Status.READY && this.cloneBody) {
+      this.cloneBody.position.y = (this.game.canvas.height / 2) + 8 * Math.cos(this.time.now / 200);
+    }
 
     // Move background.
     if(this.gameStatus !== Status.OVER) {
@@ -155,20 +209,21 @@ export default class MainScene extends Phaser.Scene {
     this.score = 0;
 
     // Update texts.
-    this.scoreText?.setText("Flappy\nClone");
+    this.scoreText?.setText(TITLE);
+    this.instructionsText?.setText(INSTRUCTIONS_START);
     this.instructionsText?.setVisible(true);
-    this.highscoreText?.setText("");
+    this.highscoreText?.setVisible(false);
 
-    // Update clone.
+    // Update player.
     this.clone?.setAngle(0);
     this.clone?.setPosition(this.game.canvas.width / 4, this.game.canvas.height / 2);
     this.clone?.setScale(1, 1);
     this.clone?.anims.play('fly');
     this.cloneBody?.setAllowGravity(false);
     
-    // Clear towers, gaps and timer.
-    this.towers?.clear();
-    this.gaps?.clear();
+    // Clear towers, milestones and timer.
+    this.towers?.clear(true);
+    this.milestones?.clear(true);
     this.spawnTimer?.remove();
   }
 
@@ -193,7 +248,9 @@ export default class MainScene extends Phaser.Scene {
   }
 
   flap() {
-    if (this.gameStatus !== Status.STARTED) {
+    if (this.gameStatus === Status.OVER) {
+      this.reset();
+    } else if (this.gameStatus === Status.READY) {
       this.start();
     }
 
@@ -216,10 +273,15 @@ export default class MainScene extends Phaser.Scene {
     const gapPosition = maxGapPosition - (maxGapPosition - minGapPosition) * Math.random();
 
     // Create towers.
-    this.spawnTower(gapPosition);
+    const topTower = this.spawnTower(gapPosition);
     this.spawnTower(gapPosition, true);
 
-    // TODO: Create gap.
+    // Create milestone (we use an invisible rectangle).
+    const milestone = this.add.rectangle(topTower.x + topTower.width, this.game.canvas.height/2, 2, this.game.canvas.height);
+    this.milestones?.add(milestone);
+    const milestoneBody = milestone.body as Phaser.Physics.Arcade.Body;
+    milestoneBody.setAllowGravity(false)
+    milestoneBody.setVelocityX(-BACKGROUND_SPEED);
   }
 
   spawnTower(gapCenter: number, flipped = false) {
@@ -232,6 +294,7 @@ export default class MainScene extends Phaser.Scene {
     ) as Phaser.GameObjects.Sprite;
     tower.setScale(1.5, flipSign * 1.5);
     tower.setOrigin(0, 0);
+    tower.setDepth(Depths.TOWERS);
 
     const towerBody = tower.body as Phaser.Physics.Arcade.Body;
     towerBody.setAllowGravity(false)
@@ -240,6 +303,45 @@ export default class MainScene extends Phaser.Scene {
     return tower;
   }
 
-  // addScore() {}
-  // setGameOver() {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  increaseScore(_objectA: any, objectB: any) {
+    const milestone = objectB as Phaser.GameObjects.Rectangle;
+    this.milestones?.remove(milestone, true, true);
+    this.score += 1;
+    this.scoreText?.setText(this.score + '');
+    this.scoreSound?.play();
+  }
+
+  endGame() {
+    this.hurtSound?.play();
+    this.gameStatus = Status.OVER;
+
+    this.instructionsText?.setText(INSTRUCTIONS_RETRY);
+    this.instructionsText?.setVisible(true);
+
+    // Update highscore.
+    if(this.score > this.highscore) {
+      this.highscore = this.score;
+      try {
+        localStorage.setItem('highscore', this.score + '');
+      }catch(exp) {
+        // Do nothing.
+      }
+    }
+    this.highscoreText?.setText("Highscore\n" + this.highscore);
+    this.highscoreText?.setVisible(true);
+
+    // Stop towers and milestones.
+    this.towers?.getChildren().forEach((tower: Phaser.GameObjects.GameObject) => {
+      const towerBody = tower.body as Phaser.Physics.Arcade.Body;
+      towerBody.setVelocityX(0);
+    });
+    this.milestones?.getChildren().forEach((milestone: Phaser.GameObjects.GameObject) => {
+      const milestoneBody = milestone.body as Phaser.Physics.Arcade.Body;
+      milestoneBody.setVelocityX(0);
+    });
+
+    // Stop spawning towers
+    this.spawnTimer?.remove();
+  }
 }
