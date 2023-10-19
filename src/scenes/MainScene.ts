@@ -14,10 +14,11 @@ const GAP_MAX_HEIGHT = CLONE_SIZE * 4.5;
 const SPAWN_RATE = 950;
 
 // Other constants.
-const SCORE_THRESHOLD = 50;
-const TITLE = "Flappy\nClone";
+const DISABLE_RESET_DELAY = 500;
 const INSTRUCTIONS_START = "Touch to\nflap wings";
 const INSTRUCTIONS_RETRY = "Touch anywhere\nto try again";
+const SCORE_THRESHOLD = 50;
+const TITLE = "Flappy\nClone";
 
 enum Status {
   READY,
@@ -36,6 +37,7 @@ enum Depths {
 export default class MainScene extends Phaser.Scene {
   private gameStatus = Status.READY;
   private highscore = 0;
+  private resetDisabled = true;
   private score = 0;
   
   private clone: Phaser.Physics.Arcade.Sprite | null = null;
@@ -113,6 +115,7 @@ export default class MainScene extends Phaser.Scene {
     this.scoreText.setFontSize(32);
     this.scoreText.setColor('#fff');
     this.scoreText.setAlign('center');
+    this.scoreText.setShadow(1, 1, '#000', 1);
     this.scoreText.setOrigin(0.5, 0.5);
     this.scoreText.setDepth(Depths.TEXTS);
   
@@ -125,6 +128,7 @@ export default class MainScene extends Phaser.Scene {
     this.instructionsText.setFontFamily('Verdana');
     this.instructionsText.setColor('#fff');
     this.instructionsText.setAlign('center');
+    this.instructionsText.setShadow(1, 1, '#000', 1);
     this.instructionsText.setOrigin(0.5, 0.5);
     this.instructionsText.setDepth(Depths.TEXTS);
 
@@ -137,6 +141,7 @@ export default class MainScene extends Phaser.Scene {
     this.highscoreText.setFontFamily('Verdana');
     this.highscoreText.setColor('#fff');
     this.highscoreText.setAlign('center');
+    this.highscoreText.setShadow(1, 1, '#000', 1);
     this.highscoreText.setOrigin(0.5, 0.5);
     this.highscoreText.setDepth(Depths.TEXTS);
 
@@ -247,8 +252,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   flap() {
-    // TODO: Should wait some time before allowing the user to reset (otherwise it's too easy to restart the game by mistake).
-    if (this.gameStatus === Status.OVER) {
+    if (this.gameStatus === Status.OVER && !this.resetDisabled) {
       this.reset();
     } else if (this.gameStatus === Status.READY) {
       this.start();
@@ -315,9 +319,6 @@ export default class MainScene extends Phaser.Scene {
     this.hurtSound?.play();
     this.gameStatus = Status.OVER;
 
-    this.instructionsText?.setText(INSTRUCTIONS_RETRY);
-    this.instructionsText?.setVisible(true);
-
     // Update highscore.
     if(this.score > this.highscore) {
       this.highscore = this.score;
@@ -342,5 +343,17 @@ export default class MainScene extends Phaser.Scene {
 
     // Stop spawning towers
     this.spawnTimer?.remove();
+
+    // Wait a time before allowing the user to reset.
+    this.resetDisabled = true;
+    this.time.addEvent({
+      delay: DISABLE_RESET_DELAY,
+      callback: () => { 
+        this.resetDisabled = false;
+
+        this.instructionsText?.setText(INSTRUCTIONS_RETRY);
+        this.instructionsText?.setVisible(true);
+      }
+    });
   }
 }
