@@ -15,8 +15,8 @@ const SPAWN_RATE = 950;
 
 // Other constants.
 const DISABLE_RESET_DELAY = 500;
-const INSTRUCTIONS_START = "Touch to\nflap wings";
-const INSTRUCTIONS_RETRY = "Touch anywhere\nto try again";
+const INSTRUCTIONS_START = "Touch the screen\n(or press Space)\nto flap wings";
+const INSTRUCTIONS_RETRY = "Touch the screen\n(or press Space)\nto try again";
 const SCORE_THRESHOLD = 50;
 const TITLE = "Flappy\nClone";
 
@@ -151,7 +151,8 @@ export default class MainScene extends Phaser.Scene {
     this.scoreSound = this.sound.add('score');
 
     // Add controls.
-    this.input.keyboard?.on('keydown', this.flap.bind(this));
+    this.input.keyboard?.on('keydown-SPACE', this.flap.bind(this));
+    this.input.keyboard?.on('keydown-ENTER', this.flap.bind(this));
     this.input.on('pointerdown', this.flap.bind(this));
 
     // Reset statuses.
