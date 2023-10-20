@@ -2,6 +2,10 @@
 
 A clone of the classic _Flappy Bird_ game, implemented with TypeScript and Phaser.
 
+[Play the game here](https://jfmdev.github.io/flappy-clone/)
+
+![screenshot](./public/misc/screenshot-wide-2.jpg)
+
 > This project is a derivative work of the [Don't Touch My Birdie](https://github.com/marksteve/dtmb) game from Mark Steve Samson. 
 
 ## Getting Started
