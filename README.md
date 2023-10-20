@@ -2,68 +2,17 @@
 
 A clone of the classic _Flappy Bird_ game, implemented with TypeScript and Phaser.
 
-> This project is a fork of the [Don't Touch My Birdie](https://github.com/marksteve/dtmb) project from Mark Steve Samson. 
+> This project is a derivative work of the [Don't Touch My Birdie](https://github.com/marksteve/dtmb) game from Mark Steve Samson. 
 
 ## Getting Started
 
-```bash
-npx degit iwantantra/vite-phaser-ts my-game
-cd my-game
-npm install
-```
+The project was created using the [vite-phaser-ts](https://github.com/iwantantra/vite-phaser-ts) template, which provides the following scripts:
 
-## Available scripts
-
-### To run the project
-
-```bash
-npm run dev
-```
-
-### To build the project
-
-```bash
-npm run build
-```
-
-### To preview the build
-
-```bash
-npm run preview
-```
-
-### To lint check your code using eslint
-
-```bash
-npm run lint
-```
-
-### To lint check and fix your code
-
-```bash
-npm run lint-fix
-```
-
-## Project structure
-
-```
-.
-├── dist
-├── node_modules
-├── public
-│    ├── assets
-├── src
-│   ├── scenes
-│       ├── HelloScene.ts
-│   ├── main.ts
-├── index.html
-├── package.json
-```
-
-`dist` your build will placed in this folder.\
-`src` you can structure your codes and folder as you like inside this folder.\
-`public` your static asset must be placed inside this folder. You can also
-create new folder inside this folder.
+* `npm run dev` to run the project locally.
+* `npm run build` to build the project.
+* `npm run preview` to preview the build.
+* `npm run lint` to lint check your code using eslint.
+* `npm run lint-fix` to lint check and fix your code.
 
 ## License
 
