@@ -1,5 +1,5 @@
 // Constants related to the game physics (speeds are pixels per second).
-const FLAP_IMPULSE = 420;
+const FLAP_IMPULSE = 400;
 const GRAVITY = 900;
 const BACKGROUND_SPEED = 180;
 
@@ -9,15 +9,16 @@ const FENCE_HEIGHT = 32;
 
 // Constants related to the towers.
 const GAP_MARGIN = CLONE_SIZE;
-const GAP_MIN_HEIGHT = CLONE_SIZE * 3;
+const GAP_MIN_HEIGHT = CLONE_SIZE * 3.5; 
 const GAP_MAX_HEIGHT = CLONE_SIZE * 4.5;
-const SPAWN_RATE = 950;
+const SPAWN_RATE = 1100;
+const DISTANCE_BETWEEN_TOWERS = SPAWN_RATE * BACKGROUND_SPEED / 1000;
 
 // Other constants.
 const DISABLE_RESET_DELAY = 500;
 const INSTRUCTIONS_START = "Touch the screen\n(or press Space)\nto flap wings";
 const INSTRUCTIONS_RETRY = "Touch the screen\n(or press Space)\nto try again";
-const SCORE_THRESHOLD = 50;
+const SCORE_THRESHOLD = 30;
 const TITLE = "Flappy\nClone";
 
 enum Status {
@@ -39,6 +40,7 @@ export default class MainScene extends Phaser.Scene {
   private highscore = 0;
   private resetDisabled = true;
   private score = 0;
+  private lastGapPosition = -1;
   
   private clone: Phaser.Physics.Arcade.Sprite | null = null;
   private cloneBody: Phaser.Physics.Arcade.Body | null = null;
@@ -274,12 +276,19 @@ export default class MainScene extends Phaser.Scene {
   spawnTowers() {
     // Generate a random position for the gap between the towers.
     const minGapPosition = this.gapHeight()/2 + GAP_MARGIN;
-    const maxGapPosition = this.game.canvas.height - FENCE_HEIGHT - this.gapHeight()/2 - GAP_MARGIN;
-    const gapPosition = maxGapPosition - (maxGapPosition - minGapPosition) * Math.random();
+    const maxGapPosition = this.game.canvas.height - (GAP_MARGIN + FENCE_HEIGHT) - this.gapHeight()/2;
+    let newGapPosition = maxGapPosition - (maxGapPosition - minGapPosition) * Math.random();
+
+    // Check that the new gap isn't too far from the previous one.
+    const maxGapDelta = DISTANCE_BETWEEN_TOWERS/2 + this.gapHeight()/2;
+    // if(this.lastGapPosition > 0) {
+    if(this.lastGapPosition > 0 && Math.abs(newGapPosition - this.lastGapPosition) > maxGapDelta) {
+      newGapPosition = newGapPosition > this.lastGapPosition ? this.lastGapPosition + maxGapDelta : this.lastGapPosition - maxGapDelta;
+    }
 
     // Create towers.
-    const bottomTower = this.spawnTower(gapPosition);
-    this.spawnTower(gapPosition, true);
+    const bottomTower = this.spawnTower(newGapPosition);
+    this.spawnTower(newGapPosition, true);
 
     // Create milestone (we use an invisible rectangle).
     const milestone = this.add.rectangle(bottomTower.x + bottomTower.width, this.game.canvas.height/2, 2, this.game.canvas.height);
@@ -287,6 +296,8 @@ export default class MainScene extends Phaser.Scene {
     const milestoneBody = milestone.body as Phaser.Physics.Arcade.Body;
     milestoneBody.setAllowGravity(false)
     milestoneBody.setVelocityX(-BACKGROUND_SPEED);
+
+    this.lastGapPosition = newGapPosition
   }
 
   spawnTower(gapCenter: number, flipped = false) {
