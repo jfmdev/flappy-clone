@@ -1,7 +1,9 @@
 {
   "name": "flappy-clone",
-  "license": "MPL-2.0",
+  "license": "CC-BY-NC-4.0",
   "version": "1.0.0",
+  "description": "A clone of the classic Flappy Bird game implemented with TypeScript and Phaser",
+  "keywords": ["game", "typescript", "pwa", "phaser", "html5-game", "phaser3", "vite", "pwa-app", "vitejs"],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -15,7 +17,8 @@
     "eslint": "^8.36.0",
     "eslint-plugin-unused-imports": "^2.0.0",
     "typescript": "^4.9.3",
-    "vite": "^4.1.0"
+    "vite": "^4.5.0",
+    "vite-plugin-pwa": "^0.16.5"
   },
   "dependencies": {
     "phaser": "^3.60.0"
